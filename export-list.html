@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Export Custom List</title>
+        <style>
+            #tableData table, th, td {
+                border: 1px solid gray;
+                border-collapse: collapse;
+                padding: 2px 10px;
+            }
+            #tableHeader, #buttonUpdate {
+                display: inline-block;
+                margin: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <h3 id="tableHeader">Custom List</h3>
+        <input id="buttonUpdate" type="button" value="Export as CSV">
+        <div id="tableData"></div>
+        
+        <script src="jquery"></script>
+        <script src="moment.js"></script>
+        <script type="text/javascript">
+            $(document).ready(function() {
+                var getListItems = $.Deferred(),
+                    items = items || {},
+                    response = response || [],
+                    count = 0,
+                    url = "https://SP-domain/sites/site-name/_vti_bin/listdata.svc/list-name?$expand=CreatedBy,ModifiedBy";
+                getListItems = function GetListItems() {
+                    $.ajax({
+                        headers:{
+                            Accept:"application/json;odata=verbose"
+                        },
+                        url:url,
+                        //async:false,
+                        method:"GET",
+                        success: function(data) {
+                            response = response.concat(data.d.results);
+                            if (data.d.__next) {
+                                url = data.d.__next;
+                                GetListItems();
+                            } else {
+                                $.each(response, function(key,value) {
+                                    var obj = {};
+                                    $.each(value, function(key, value) {
+                                        if (typeof value !== "object") {
+                                            obj[key] = value === null ? "" : value;
+                                        } else if (key === "CreatedBy" || key === "ModifiedBy") {
+                                            var parentKey = key;
+                                            $.each(value, function(key,value) {
+                                                if (key === "Name") {
+                                                    switch (parentKey) {
+                                                        case "CreatedBy":
+                                                            obj["CreatedBy"] = value === null ? "" : value;
+                                                            break;
+                                                        case "ModifiedBy":
+                                                            obj["ModifiedBy"] = value === null ? "" : value;
+                                                    }
+                                                }
+                                            });
+                                        }
+                                    });
+                                    engagement[key] = obj;
+                                });
+                            }
+                        },
+                        error: function(data) {
+                            console.log(JSON.stringify(data));
+                        }
+                    });
+                }
+                
+                buildTable = function BuildTable() {
+                    var html = "";
+                    html += "<table><thead><tr>";
+                    html += "<th>ID</th>";
+                    html += "<th>Created</th>";
+                    html += "<th>CreatedBy</th>";
+                    html += "<th>Modified</th>";
+                    html += "<th>ModifiedBy</th><tbody>";
+                    
+                    $.each(items, function(item) {
+                        html += "<tr>";
+                        html += "<td>" + validateValue(items[item].Id,"string","") + "</td>";
+                        html += "<td>" + validateValue(items[item].Created,"date","MM/DD/YYYY HH:mm") + "</td>";
+                        html += "<td>" + validateValue(items[item].CreatedBy,"string","") + "</td>";
+                        html += "<td>" + validateValue(items[item].Modified,"date","MM/DD/YYYY HH:mm") + "</td>";
+                        html += "<td>" + validateValue(items[item].ModifiedBy,"string","") + "</td>";
+                        count++;
+                    });
+                    
+                    html += "</tbody></table>";
+                    $("#tableData").append(html);
+                    $("#tableHeader").text("Custom List (Count: " + count.toString() + ")");
+                }
+                
+                $.when(getListItems).done(buildTable);
+                
+                // export data to a csv file
+                $("#buttonExport").on("click", function() {
+                    var csvData = "";
+                    var separator = "%%";
+                    $.each(items, function(item) {
+                        csvData += "ID:" + validateValue(items[item].Id,"string","") + separator;
+                        csvData += "Created:" + validateValue(items[item].Created,"date","MM/DD/YYYY HH:mm") + separator;
+                        csvData += "CreatedBy:" + validateValue(items[item].CreatedBy,"string","") + separator;
+                        csvData += "Modified:" + validateValue(items[item].Modified,"date","MM/DD/YYYY HH:mm") + separator;
+                        csvData += "ModifiedBy:" + validateValue(items[item].ModifiedBy,"string","");
+                        csvData += "\n";
+                    });
+                    download(csvData,"customList.csv","text/csv");
+                });
+                
+                // function that outputs the csv file
+                function download(data, filename, type) {
+                    var file = new Blob([data], {type: type});
+                    if (window.navigator.msSaveOrOpenBlob) { // IE10+
+                        window.navigator.msSaveOrOpenBlob(file, filename);
+                    } else { // others
+                        var a = document.createElement("a"),
+                            url = URL.createObjectURL(file);
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        setTimeout(function() {
+                            document.body.removeChild(a);
+                            window.URL.revokeObjectURL(url);
+                        }, 0);
+                    }
+                }
+                
+                // validating values
+                function validateValue(value, type, format) {
+                    var result = "";
+                    var removeChars = /[\x00-\x1F\-\x9F]/g; // non-visible characters
+                    switch (type) {
+                        case "string":
+                            result = value !== undefined ? String(value).replace(removeChars,"") : "";
+                            break;
+                        case "date":
+                            result = moment(value).isValid() ? moment(value).format(format) : "";
+                    }
+                    return result;
+                }
+            });
+        </script>
+    </body>
+</html>

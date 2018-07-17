@@ -1,0 +1,122 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Site Users</title>
+        <style>
+            #tableData table, th, td {
+                border: 1px solid gray;
+                border-collapse: collapse;
+                padding: 2px 10px;
+            }
+            #tableHeader, #buttonUpdate {
+                display: inline-block;
+                margin: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <h3 id="tableHeader">Site Users</h3>
+        <input id="buttonExport" type="button" value="Export as CSV">
+        <div id="tableData"></div>
+        <script src="jquery"></script>
+        <script type="text/javascript">
+            $(document).ready(function() {
+                var users = {},
+                    count = 0,
+                    url = "/sites/development/_api/web/siteuserinfolist/items?$select=Id,Departmnet,FirstName,LastName,Name,UserName,WorkPhone,Email&$top=10000";
+                $.when(
+                    $.ajax({
+                        headers: {
+                            Accept: "application/json;odata=verbose"
+                        },
+                        url: url,
+                        type: "GET",
+                        success: function(data) {
+                            if (data && data.d.results.length) {
+                                var json = data .d.results;
+                                $.each(json, function(key,value) {
+                                    var obj = {};
+                                    $.each(value, function(key,value) {
+                                        obj[key] = value === null ? "" : value;
+                                    });
+                                    users[key] = obj;
+                                });
+                            }
+                        },
+                        error: function(data) {
+                            console.log(JSON.stringify(data));
+                        }
+                    })
+                ).done(function() {
+                    var html = "";
+                    html += "<table><thead><tr>";
+                    html += "<th>ID</th>";
+                    html += "<th>UserID</th>";
+                    html += "<th>LastName</th>";
+                    html += "<th>FirstName</th>";
+                    html += "<th>WorkEmail</th>";
+                    html += "<th>WorkPhone</th>";
+                    html += "<th>Department</th>";
+                    html += "</tr></thead><tbody>";
+                    
+                    $.each(users, function(user) {
+                        if (users[user].EMail !== "") {
+                            html += "<tr>";
+                            html += "<td>" + users[user].ID + "</td>";
+                            html += "<td>" + users[user].Email.substr(0,users[user].EMail.indexOf("@")) + "</td>";
+                            html += "<td>" + users[user].LastName + "</td>";
+                            html += "<td>" + users[user].FirstName + "</td>";
+                            html += "<td>" + users[user].EMail + "</td>";
+                            html += "<td>" + users[user].WorkPhone + "</td>";
+                            html += "<td>" + users[user].Department + "</td>";
+                            html += "</tr>";
+                            count++;
+                        }
+                    });
+                    
+                    html += "</tbody></table>";
+                    $("#tableData").append(html);
+                    $("#tableHeader").text("Site Users (Count: " + count.toString() + ")");
+                });
+                
+                // export data to a csv file
+                $("#buttonExport").on("click", function() {
+                    var csvData = "";
+                    $.each(users, function(user) {
+                        if (users[user].EMail !== "") {
+                            csvData += "ID:" + users[user].ID + ",";
+                            csvData += "UserID:" + users[user].EMail.substr(0,users[user].EMail.indexOf("@")) + ",";
+                            csvData += "LastName:" + users[user].LastName + ",";
+                            csvData += "FirstName:" + users[user].FirstName + ",";
+                            csvData += "EMail:" + users[user].EMail + ",";
+                            csvData += "WorkPhone:" + users[user].WorkPhone + ",";
+                            csvData += "Department:" + users[user].Department + ",";
+                            csvData += "\n";
+                        }
+                    });
+                    download(csvData,"users.csv","text/csv");
+                });
+                // function that outputs the csv file
+                function download(data, filename, type) {
+                    var file = new Blob([data], {type: type});
+                    if (window.navigator.msSaveOrOpenBlob) // IE10+
+                        window.navigator.msSaveOrOpenBlob(file, filename);
+                    else { // others
+                        var a = document.createElement("a"),
+                            url = URL.createObjectURL(file);
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        setTimeout(function() {
+                            document.body.removeChild(a);
+                            window.URL.revokeObjectURL(url);
+                        }, 0);
+                    }
+                }
+            });
+        </script>
+    </body>
+</html>
