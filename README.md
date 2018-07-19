@@ -7,6 +7,7 @@
    - various PHP files for database operations:
       * dbConnect.php - contains service account credentials for the MySQL database
       * getUserInfo.php - gets info about the logged in user using SSL certificate
+      * sendEmail.php - sends email using PHP mail function
       * getItem.php - selects a single record
       * getItems.php - selects multiple records
       * insertItem.php - inserts a single record
